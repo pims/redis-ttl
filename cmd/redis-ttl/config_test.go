@@ -80,6 +80,10 @@ func TestConfig(t *testing.T) {
 			},
 			err: errTTL,
 		},
+		"can't set rps to 0": {
+			cfg: config{rps: 0, mode: "persist"},
+			err: errRPS,
+		},
 	}
 
 	for name, tc := range testCases {

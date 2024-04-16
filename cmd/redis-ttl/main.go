@@ -8,6 +8,7 @@ import (
 
 	redisttl "github.com/pims/redis-ttl"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -28,6 +29,7 @@ func run(args []string) error {
 	fs.StringVar(&cfg.scanPrefix, "scan-prefix", "not-found", "--scan-prefix=my-prefix")
 	fs.StringVar(&cfg.mode, "mode", "noop", "--mode=exp|gt|lt|nx|xx|noop|persist")
 	fs.TextVar(&cfg.desiredTTL, "desired-ttl", &cfg.desiredTTL, "--desired-ttl=24h")
+	fs.IntVar(&cfg.rps, "rps", 100, "--rps=100")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -51,6 +53,7 @@ func run(args []string) error {
 		ScanPrefix: cfg.scanPrefix,
 		Mode:       cfg.mode,
 		DesiredTTL: cfg.desiredTTL.AsDuration(),
+		Limiter:    rate.NewLimiter(rate.Limit(cfg.rps), cfg.rps),
 	}
 
 	return f.Run(context.Background())
