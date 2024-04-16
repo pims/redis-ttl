@@ -149,6 +149,14 @@ func TestScan(t *testing.T) {
 
 }
 
+type dummyLimiter struct {
+	err error
+}
+
+func (l *dummyLimiter) Wait(_ context.Context) error {
+	return l.err
+}
+
 type hook struct {
 	// possible values are “before” or “after”,
 	//based on where we would want to run the hook Action
@@ -196,5 +204,30 @@ func TestRunError(t *testing.T) {
 	ctx := context.Background()
 	if err := f.Run(ctx); err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestLimitError(t *testing.T) {
+
+	s := miniredis.RunT(t)
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr: s.Addr(),
+	})
+
+	_ = s.Set("foo", "bar")
+
+	var errLimit = errors.New("dummy limiter error")
+	f := Scanner{
+		Mode:       "exp",
+		ScanPrefix: "f*",
+		Client:     rdb,
+		DesiredTTL: time.Hour,
+		Limiter:    &dummyLimiter{err: errLimit},
+	}
+
+	ctx := context.Background()
+	if err := f.Run(ctx); !errors.Is(errLimit, err) {
+		t.Fatalf("expected error %v, got: %v", errLimit, err)
 	}
 }

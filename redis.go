@@ -12,11 +12,16 @@ import (
 
 var errInvalidMode = errors.New("invalid mode")
 
+type limiter interface {
+	Wait(ctx context.Context) (err error)
+}
+
 type Scanner struct {
 	Client     redis.Cmdable
 	Mode       string
 	ScanPrefix string
 	DesiredTTL time.Duration
+	Limiter    limiter
 }
 
 func (f *Scanner) Run(ctx context.Context) error {
@@ -45,6 +50,11 @@ func (f *Scanner) Run(ctx context.Context) error {
 	}
 
 	for iter.Next(ctx) {
+
+		if err := f.wait(ctx); err != nil {
+			return err
+		}
+
 		key := iter.Val()
 		ok, err := fn(ctx, key, f.DesiredTTL).Result()
 		if err != nil {
@@ -56,4 +66,11 @@ func (f *Scanner) Run(ctx context.Context) error {
 	}
 
 	return iter.Err()
+}
+
+func (s *Scanner) wait(ctx context.Context) error {
+	if s.Limiter != nil {
+		return s.Limiter.Wait(ctx)
+	}
+	return nil
 }

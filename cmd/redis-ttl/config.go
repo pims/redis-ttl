@@ -8,13 +8,17 @@ import (
 	"time"
 )
 
-var errTTL = errors.New("invalid ttl")
+var (
+	errTTL = errors.New("invalid ttl")
+	errRPS = errors.New("invalid rps")
+)
 
 var defaultConfig = config{
 	redisAddr:  ":6379",
 	mode:       "noop",
 	scanPrefix: "not-found",
 	desiredTTL: ttl{dur: 1 * time.Hour},
+	rps:        100,
 }
 
 type config struct {
@@ -22,13 +26,17 @@ type config struct {
 	scanPrefix string
 	mode       string
 	desiredTTL ttl
+	rps        int
 }
 
 func (c *config) Err() error {
 	switch {
 	case c.desiredTTL.dur <= 0 && c.mode != "persist":
 		return fmt.Errorf("invalid desired-ttl value (%s) for mode %s: %w", &c.desiredTTL, c.mode, errTTL)
+	case c.rps <= 0:
+		return fmt.Errorf("rps must be greater than 0, got %d: %w", &c.rps, errRPS)
 	}
+
 	return nil
 }
 
