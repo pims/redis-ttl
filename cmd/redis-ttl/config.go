@@ -14,19 +14,21 @@ var (
 )
 
 var defaultConfig = config{
-	redisAddr:  ":6379",
-	mode:       "noop",
-	scanPrefix: "not-found",
-	desiredTTL: ttl{dur: 1 * time.Hour},
-	rps:        100,
+	redisAddr:         ":6379",
+	mode:              "noop",
+	scanPrefix:        "not-found",
+	desiredTTL:        ttl{dur: 1 * time.Hour},
+	rps:               100,
+	redisClusterAddrs: "",
 }
 
 type config struct {
-	redisAddr  string
-	scanPrefix string
-	mode       string
-	desiredTTL ttl
-	rps        int
+	redisAddr         string
+	scanPrefix        string
+	mode              string
+	desiredTTL        ttl
+	rps               int
+	redisClusterAddrs string
 }
 
 func (c *config) Err() error {
@@ -35,6 +37,8 @@ func (c *config) Err() error {
 		return fmt.Errorf("invalid desired-ttl value (%s) for mode %s: %w", &c.desiredTTL, c.mode, errTTL)
 	case c.rps <= 0:
 		return fmt.Errorf("rps must be greater than 0, got %d: %w", &c.rps, errRPS)
+	case c.redisAddr == "" && c.redisClusterAddrs == "":
+		return fmt.Errorf("both --redis-addr and --redis-cluster-addrs cannot be empty")
 	}
 
 	return nil
