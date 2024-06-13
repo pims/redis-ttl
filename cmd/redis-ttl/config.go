@@ -11,23 +11,27 @@ import (
 var errTTL = errors.New("invalid ttl")
 
 var defaultConfig = config{
-	redisAddr:  ":6379",
-	mode:       "noop",
-	scanPrefix: "not-found",
-	desiredTTL: ttl{dur: 1 * time.Hour},
+	redisAddr:         ":6379",
+	mode:              "noop",
+	scanPrefix:        "not-found",
+	desiredTTL:        ttl{dur: 1 * time.Hour},
+	redisClusterAddrs: "",
 }
 
 type config struct {
-	redisAddr  string
-	scanPrefix string
-	mode       string
-	desiredTTL ttl
+	redisAddr         string
+	scanPrefix        string
+	mode              string
+	desiredTTL        ttl
+	redisClusterAddrs string
 }
 
 func (c *config) Err() error {
 	switch {
 	case c.desiredTTL.dur <= 0 && c.mode != "persist":
 		return fmt.Errorf("invalid desired-ttl value (%s) for mode %s: %w", &c.desiredTTL, c.mode, errTTL)
+	case c.redisAddr == "" && c.redisClusterAddrs == "":
+		return fmt.Errorf("both --redis-addr and --redis-cluster-addrs cannot be empty")
 	}
 	return nil
 }
