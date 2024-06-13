@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 
 	redisttl "github.com/pims/redis-ttl"
 	"github.com/redis/go-redis/v9"
@@ -30,6 +31,7 @@ func run(args []string) error {
 	fs.StringVar(&cfg.mode, "mode", "noop", "--mode=exp|gt|lt|nx|xx|noop|persist")
 	fs.TextVar(&cfg.desiredTTL, "desired-ttl", &cfg.desiredTTL, "--desired-ttl=24h")
 	fs.IntVar(&cfg.rps, "rps", 100, "--rps=100")
+	fs.StringVar(&cfg.redisClusterAddrs, "redis-cluster-addrs", "", "--redis-cluster-addrs=node1:6379,node2:6379")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -39,10 +41,18 @@ func run(args []string) error {
 		return err
 	}
 
-	// TODO: add support for redis cluster
-	rdb := redis.NewClient(&redis.Options{
-		Addr: cfg.redisAddr,
+	var rdb redis.Cmdable
+	rdb = redis.NewClient(&redis.Options{
+		Addr:       cfg.redisAddr,
+		ClientName: "redis-ttl",
 	})
+
+	if cfg.redisClusterAddrs != "" {
+		rdb = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:      strings.Split(cfg.redisClusterAddrs, ","),
+			ClientName: "redis-ttl-cluster",
+		})
+	}
 
 	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
 		return err
