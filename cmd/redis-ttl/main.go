@@ -32,6 +32,7 @@ func run(args []string) error {
 	fs.TextVar(&cfg.desiredTTL, "desired-ttl", &cfg.desiredTTL, "--desired-ttl=24h")
 	fs.IntVar(&cfg.rps, "rps", 100, "--rps=100")
 	fs.StringVar(&cfg.redisClusterAddrs, "redis-cluster-addrs", "", "--redis-cluster-addrs=node1:6379,node2:6379")
+	fs.StringVar(&cfg.scanType, "scan-type", "string", "--scan-type=set|string|list|hash")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -64,6 +65,7 @@ func run(args []string) error {
 		Mode:       cfg.mode,
 		DesiredTTL: cfg.desiredTTL.AsDuration(),
 		Limiter:    rate.NewLimiter(rate.Limit(cfg.rps), cfg.rps),
+		ScanType:   cfg.scanType,
 	}
 
 	return f.Run(context.Background())
