@@ -20,6 +20,7 @@ var defaultConfig = config{
 	desiredTTL:        ttl{dur: 1 * time.Hour},
 	rps:               100,
 	redisClusterAddrs: "",
+	scanType:          "string",
 }
 
 type config struct {
@@ -29,6 +30,7 @@ type config struct {
 	desiredTTL        ttl
 	rps               int
 	redisClusterAddrs string
+	scanType          string
 }
 
 func (c *config) Err() error {
