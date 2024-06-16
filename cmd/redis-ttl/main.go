@@ -42,19 +42,34 @@ func run(args []string) error {
 		return err
 	}
 
-	var rdb redis.Cmdable
-	rdb = redis.NewClient(&redis.Options{
-		Addr:       cfg.redisAddr,
-		ClientName: "redis-ttl",
-	})
-
 	if cfg.redisClusterAddrs != "" {
-		rdb = redis.NewClusterClient(&redis.ClusterOptions{
+		clusterClient := redis.NewClusterClient(&redis.ClusterOptions{
 			Addrs:      strings.Split(cfg.redisClusterAddrs, ","),
 			ClientName: "redis-ttl-cluster",
 		})
+		ctx := context.Background()
+		clusterClient.ReloadState(ctx)
+
+		runScan := func(ctx context.Context, client *redis.Client) error {
+
+			f := &redisttl.Scanner{
+				Client:     client,
+				ScanPrefix: cfg.scanPrefix,
+				Mode:       cfg.mode,
+				DesiredTTL: cfg.desiredTTL.AsDuration(),
+				Limiter:    rate.NewLimiter(rate.Limit(cfg.rps), cfg.rps),
+				ScanType:   cfg.scanType,
+			}
+			return f.Run(ctx)
+		}
+
+		return clusterClient.ForEachMaster(ctx, runScan)
 	}
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr:       cfg.redisAddr,
+		ClientName: "redis-ttl",
+	})
 	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
 		return err
 	}
