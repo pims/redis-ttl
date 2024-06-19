@@ -59,14 +59,19 @@ func (f *Scanner) Run(ctx context.Context) error {
 		key := iter.Val()
 		ok, err := fn(ctx, key, f.DesiredTTL).Result()
 		if err != nil {
-			return err
+			log.Printf("expFn error: %v\n", err)
+			continue
 		}
 		if ok {
 			log.Println(key, ok)
 		}
 	}
 
-	return iter.Err()
+	iterErr := iter.Err()
+	if iterErr != nil {
+		return fmt.Errorf("iter error: %w", iterErr)
+	}
+	return nil
 }
 
 func (s *Scanner) wait(ctx context.Context) error {
