@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -259,5 +260,20 @@ func TestLimitError(t *testing.T) {
 	ctx := context.Background()
 	if err := f.Run(ctx); !errors.Is(errLimit, err) {
 		t.Fatalf("expected error %v, got: %v", errLimit, err)
+	}
+}
+
+func TestPrimaryNodesFromClusterNodes(t *testing.T) {
+	input := `07c37dfeb235213a872192d90877d0cd55635b91 127.0.0.1:30004@31004,hostname4 slave e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 0 1426238317239 4 connected
+67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 127.0.0.1:30002@31002,hostname2 master - 0 1426238316232 2 connected 5461-10922
+292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 127.0.0.1:30003@31003,hostname3 master - 0 1426238318243 3 connected 10923-16383
+6ec23923021cf3ffec47632106199cb7f496ce01 127.0.0.1:30005@31005,hostname5 slave 67ed2db8d677e59ec4a4cefb06858cf2a1a89fa1 0 1426238316232 5 connected
+824fe116063bc5fcf9f4ffd895bc17aee7731ac3 127.0.0.1:30006@31006,hostname6 slave 292f8b365bb7edb5e285caf0b7e6ddc7265d2f4f 0 1426238317741 6 connected
+e7d1eecce10fd6bb5eb35b9f99a514335d9ba9ca 127.0.0.1:30001@31001,hostname1 myself,master - 0 0 1 connected 0-5460
+`
+	primaries := PrimaryNodesFromClusterNodes(input)
+	expected := []string{"127.0.0.1:30002", "127.0.0.1:30003", "127.0.0.1:30001"}
+	if !reflect.DeepEqual(primaries, expected) {
+		t.Fatalf("got: %v, want : %v", primaries, expected)
 	}
 }
