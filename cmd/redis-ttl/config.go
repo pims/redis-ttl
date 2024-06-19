@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	errTTL = errors.New("invalid ttl")
-	errRPS = errors.New("invalid rps")
+	errTTL       = errors.New("invalid ttl")
+	errRPS       = errors.New("invalid rps")
+	errScanCount = errors.New("invalid scan count")
 )
 
 var defaultConfig = config{
@@ -21,6 +22,7 @@ var defaultConfig = config{
 	rps:               100,
 	redisClusterAddrs: "",
 	scanType:          "string",
+	scanCount:         0,
 }
 
 type config struct {
@@ -31,6 +33,7 @@ type config struct {
 	rps               int
 	redisClusterAddrs string
 	scanType          string
+	scanCount         int64
 }
 
 func (c *config) Err() error {
@@ -41,6 +44,8 @@ func (c *config) Err() error {
 		return fmt.Errorf("rps must be greater than 0, got %d: %w", &c.rps, errRPS)
 	case c.redisAddr == "" && c.redisClusterAddrs == "":
 		return fmt.Errorf("both --redis-addr and --redis-cluster-addrs cannot be empty")
+	case c.scanCount < 0:
+		return fmt.Errorf("scanCount must be greater than 0, got %d: %w", &c.scanCount, errScanCount)
 	}
 
 	return nil

@@ -23,11 +23,12 @@ type Scanner struct {
 	DesiredTTL time.Duration
 	Limiter    limiter
 	ScanType   string
+	ScanCount  int64
 }
 
 func (f *Scanner) Run(ctx context.Context) error {
 	c := f.Client
-	iter := c.ScanType(ctx, 0, f.ScanPrefix, 0, f.ScanType).Iterator()
+	iter := c.ScanType(ctx, 0, f.ScanPrefix, f.ScanCount, f.ScanType).Iterator()
 
 	type ttlFunc func(ctx context.Context, key string, ttl time.Duration) *redis.BoolCmd
 
