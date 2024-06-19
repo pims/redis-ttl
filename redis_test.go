@@ -160,12 +160,13 @@ func (l *dummyLimiter) Wait(_ context.Context) error {
 type hook struct {
 	// possible values are “before” or “after”,
 	//based on where we would want to run the hook Action
-	err error
+	err     error
+	cmdName string
 }
 
 func (h *hook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
-		if cmd.FullName() == "expire" {
+		if cmd.FullName() == h.cmdName {
 			return h.err
 		}
 		return next(ctx, cmd)
@@ -180,7 +181,7 @@ func (h *hook) DialHook(hook redis.DialHook) redis.DialHook {
 	return hook
 }
 
-func TestRunError(t *testing.T) {
+func TestRunExpError(t *testing.T) {
 
 	s := miniredis.RunT(t)
 
@@ -191,7 +192,36 @@ func TestRunError(t *testing.T) {
 	_ = s.Set("foo", "bar")
 
 	rdb.AddHook(&hook{
-		err: fmt.Errorf("expire call failed"),
+		cmdName: "expire",
+		err:     nil,
+	})
+
+	f := Scanner{
+		Mode:       "exp",
+		ScanPrefix: "f*",
+		Client:     rdb,
+		DesiredTTL: time.Hour,
+	}
+
+	ctx := context.Background()
+	if err := f.Run(ctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunIterError(t *testing.T) {
+
+	s := miniredis.RunT(t)
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr: s.Addr(),
+	})
+
+	_ = s.Set("foo", "bar")
+
+	rdb.AddHook(&hook{
+		cmdName: "scan",
+		err:     fmt.Errorf("scan call failed"),
 	})
 
 	f := Scanner{
