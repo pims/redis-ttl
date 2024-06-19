@@ -9,6 +9,7 @@ import (
 
 	redisttl "github.com/pims/redis-ttl"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
 
@@ -51,20 +52,39 @@ func run(args []string) error {
 		ctx := context.Background()
 		clusterClient.ReloadState(ctx)
 
-		runScan := func(ctx context.Context, client *redis.Client) error {
+		nodes, err := clusterClient.ClusterNodes(ctx).Result()
+		if err != nil {
+			return err
+		}
+		primaries := redisttl.PrimaryNodesFromClusterNodes(nodes)
 
-			f := &redisttl.Scanner{
-				Client:     client,
-				ScanPrefix: cfg.scanPrefix,
-				Mode:       cfg.mode,
-				DesiredTTL: cfg.desiredTTL.AsDuration(),
-				Limiter:    rate.NewLimiter(rate.Limit(cfg.rps), cfg.rps),
-				ScanType:   cfg.scanType,
-			}
-			return f.Run(ctx)
+		g := new(errgroup.Group)
+		for _, primary := range primaries {
+			primary := primary
+
+			g.Go(func() error {
+				scanClient := redis.NewClient(&redis.Options{
+					Addr:       primary,
+					ClientName: "redis-ttl-primary",
+				})
+
+				f := &redisttl.Scanner{
+					ScanClient: scanClient,
+					Client:     clusterClient,
+					ScanPrefix: cfg.scanPrefix,
+					Mode:       cfg.mode,
+					DesiredTTL: cfg.desiredTTL.AsDuration(),
+					Limiter:    rate.NewLimiter(rate.Limit(cfg.rps), cfg.rps),
+					ScanType:   cfg.scanType,
+					Name:       primary,
+				}
+				log.Printf("starting scan for: %s\n", primary)
+				return f.Run(context.Background())
+			})
 		}
 
-		return clusterClient.ForEachMaster(ctx, runScan)
+		// Wait for all Primary runs to complete
+		return g.Wait()
 	}
 
 	rdb := redis.NewClient(&redis.Options{
